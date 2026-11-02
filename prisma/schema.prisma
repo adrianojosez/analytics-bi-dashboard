@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PlanTier {
+  STARTER
+  GROWTH
+  SCALE
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIAL
+  CANCELLED
+  PAST_DUE
+}
+
+enum TransactionStatus {
+  PAID
+  PENDING
+  REFUNDED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Tenant {
+  id              String         @id @default(cuid())
+  name            String
+  slug            String         @unique
+  domain          String?
+  plan            PlanTier       @default(GROWTH)
+  users           User[]
+  subscriptions   Subscription[]
+  transactions    Transaction[]
+  metricSnapshots MetricSnapshot[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model Subscription {
+  id            String               @id @default(cuid())
+  tenantId      String
+  tenant        Tenant               @relation(fields: [tenantId], references: [id])
+  planTier      PlanTier
+  status        SubscriptionStatus   @default(ACTIVE)
+  monthlyPrice  Float
+  annualPrice   Float
+  seats         Int
+  startedAt     DateTime             @default(now())
+  renewedAt     DateTime?
+  cancelledAt   DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+}
+
+model MetricSnapshot {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  month          String
+  mrr            Float
+  arr            Float
+  churnRate      Float
+  averageLtv     Float
+  newCustomers   Int
+  cancelledUsers Int
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId, month])
+}
+
+model Transaction {
+  id        String            @id @default(cuid())
+  tenantId  String
+  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+  customer  String
+  plan      PlanTier
+  amount    Float
+  status    TransactionStatus @default(PAID)
+  date      DateTime          @default(now())
+  createdAt DateTime          @default(now())
+}
